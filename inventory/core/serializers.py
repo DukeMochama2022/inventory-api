@@ -41,7 +41,14 @@ class StockEntrySerializer(serializers.ModelSerializer):
 
     class Meta:
         model=StockEntry
-        fields=['id', 'item', 'item_id', 'quantity', 'supplier', 'supplier_id', 'date_added']
+        fields=['id', 'item', 'item_id', 'quantity_added', 'supplier', 'supplier_id', 'date_added']
+
+    def create(self, validated_data):
+        item=validated_data['item']
+        quantity_added=validated_data['quantity_added']
+        item.quantity+=quantity_added
+        item.save()
+        return super().create(validated_data)    
 
 class StockExitSerializer(serializers.ModelSerializer):
     date_removed=serializers.DateTimeField(format="%Y-%m-%d",read_only=True)
@@ -53,4 +60,13 @@ class StockExitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model=StockExit
-        fields=['id', 'item', 'item_id', 'quantity', 'customer', 'customer_id', 'date_removed']       
+        fields=['id', 'item', 'item_id', 'quantity_removed', 'customer', 'customer_id', 'date_removed']  
+
+    def create(self, validated_data):
+        item=validated_data['item']
+        quantity_removed=validated_data['quantity_removed']
+        if item.quantity < quantity_removed:
+            raise serializers.ValidationError("Not enough stock to remove.")
+        item.quantity-=quantity_removed
+        item.save()    
+        return super().create(validated_data)         
