@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1, h2 { text-align: center; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        table, th, td {
+            border: 1px solid #444;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .summary {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Inventory Stock Report</h1>
+    <p>Date: {{ now|default:"" }}</p>
+
+    <div class="summary">
+        <h2>Summary</h2>
+        <p><strong>Total Entries:</strong> {{ entries|length }}</p>
+        <p><strong>Total Quantity Added:</strong> {{ total_entry_quantity }}</p>
+        <p><strong>Total Exits:</strong> {{ exits|length }}</p>
+        <p><strong>Total Quantity Removed:</strong> {{ total_exit_quantity }}</p>
+        <p><strong>Net Stock:</strong> {{ net_stock }}</p>
+    </div>
+
+    <h2>Stock Entries</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Supplier</th>
+                <th>Quantity</th>
+                <th>Date Added</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr>
+                <td>{{ entry.item.item_name }}</td>
+                <td>{{ entry.supplier.name }}</td>
+                <td>{{ entry.quantity_added }}</td>
+                <td>{{ entry.date_added }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Stock Exits</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Date Removed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exit in exits %}
+            <tr>
+                <td>{{ exit.item.item_name }}</td>
+                <td>{{ exit.quantity_removed }}</td>
+                <td>{{ exit.date_removed }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

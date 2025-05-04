@@ -16,6 +16,7 @@ router.register(r'stock-exit',views.StockExitViewSet,basename='stock-exit')
 urlpatterns = [
     path('',include(router.urls)),
     path('api/dashboard/', views.DashBoardView.as_view(), name='dashboard'),
+    path('api/reports/stock-report-pdf/', views.StockPDFReportView.as_view(), name='stock-pdf-report'),
     path('api/register/',RegisterView.as_view(),name='register'),
     path('api/login/', obtain_auth_token, name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

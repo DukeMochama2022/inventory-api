@@ -7,25 +7,31 @@ from rest_framework.views import APIView
 from .models import Customer,Item,Category,StockEntry,StockExit,Supplier
 from .serializers import ItemSerializer,CategorySerializer,CustomerSerializer,StockEntrySerializer,StockExitSerializer,SupplierSerializer
 from django.db.models import Sum,Min,Max
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+from django.http import HttpResponse
+
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset=Customer.objects.all()
     serializer_class=CustomerSerializer
     permission_classes=[IsAuthenticated]
+
+    filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
+    search_fields=['name','email','phone'] 
+     
     
 
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer  
-    permission_classes=[IsAuthenticated] 
+    permission_classes=[IsAuthenticated]   
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-    # Owners to see only their suppliers
-    def get_queryset(self):
-        return Supplier.objects.filter(owner=self.request.user)    
+    filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
+    search_fields=['name','contact_email','phone']       
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -37,7 +43,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     # Owners to see their own categories
     def get_queryset(self):
-        return Category.objects.filter(owner=self.request.user)    
+        return Category.objects.filter(owner=self.request.user)  
+
+    filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
+    search_fields=['name']      
 
 class ItemViewSet(viewsets.ModelViewSet):
     queryset = Item.objects.all()
@@ -48,7 +57,12 @@ class ItemViewSet(viewsets.ModelViewSet):
 
     # Owners to see their own items
     def get_queryset(self):
-        return Item.objects.filter(owner=self.request.user)      
+        return Item.objects.filter(owner=self.request.user) 
+
+    filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields=['category','supplier']
+    search_fields=['item_name'] 
+    ordering_filters=['quantity','date_added']        
 
 # Create your views here.
 
@@ -63,6 +77,11 @@ class StockEntryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
          serializer.save(added_by=self.request.user)
 
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['item', 'supplier', 'added_by']
+    search_fields = ['item__item_name']
+    ordering_fields = ['date_added', 'quantity_added']     
+
 class StockExitViewSet(viewsets.ModelViewSet):
     queryset=StockExit.objects.all()
     serializer_class=StockExitSerializer
@@ -74,11 +93,14 @@ class StockExitViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(removed_by=self.request.user)    
 
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['item', 'customer', 'removed_by']
+    search_fields = ['item__item_name']
+    ordering_fields = ['date_removed', 'quantity_removed'] 
 # Building a Dashboard View
 
 class DashBoardView(APIView):
     permission_classes=[IsAuthenticated]
-
     def get(self,request):
         total_items=Item.objects.count()
         total_categories=Category.objects.count()
@@ -87,7 +109,7 @@ class DashBoardView(APIView):
 
         total_stock_quantity=Item.objects.aggregate(quantity_sum=Sum("quantity"))['quantity_sum'] or 0
 
-        low_stock_items = Item.objects.filter(quantity__lt=10).values('item_name', 'quantity')
+        low_stock_items = Item.objects.filter(quantity__lt=100).values('item_name', 'quantity')
 
         most_stocked=Item.objects.order_by('-quantity').first()
         least_stocked=Item.objects.order_by('quantity').first()
@@ -110,3 +132,28 @@ class DashBoardView(APIView):
         }
 
         return Response(data)
+
+
+class StockPDFReportView(APIView):
+    permission_classes=[IsAuthenticated]
+    def get(self,request):
+        entries=StockEntry.objects.all()
+        exits=StockExit.objects.all()
+
+        total_entry_quantity = entries.aggregate(Sum('quantity_added'))['quantity_added__sum'] or 0
+        total_exit_quantity = exits.aggregate(Sum('quantity_removed'))['quantity_removed__sum'] or 0
+        net_stock = total_entry_quantity - total_exit_quantity
+
+        context = {
+            'entries': entries,
+            'exits': exits,
+            'total_entry_quantity': total_entry_quantity,
+            'total_exit_quantity': total_exit_quantity,
+            'net_stock': net_stock,
+        }
+
+        html = render_to_string('reports/stock_report.html', context)
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="stock_report.pdf"'
+        pisa_status = pisa.CreatePDF(html, dest=response)
+        return response
