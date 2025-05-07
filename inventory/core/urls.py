@@ -2,10 +2,11 @@ from django.urls import path,include
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from . import views
-from .views_auth import RegisterView,LogoutView
+from .views_auth import LogoutView,RegisterView
 
 
 router=DefaultRouter()
+# router.register(r'register',views.RegisterViewSet,basename='register')
 router.register(r'items',views.ItemViewSet)
 router.register(r'categories',views.CategoryViewSet)
 router.register(r'customers',views.CustomerViewSet)

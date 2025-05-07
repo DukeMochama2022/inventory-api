@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.permissions import IsAdminUser,IsAuthenticated,IsAuthenticatedOrReadOnly
-from .permissions import IsOwnerOrReadOnly
+from .permissions import IsOwnerOrReadOnly,IsAdmin,IsStaffOrAdmin,IsViewerReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.contrib.auth.models import User
 from .models import Customer,Item,Category,StockEntry,StockExit,Supplier
 from .serializers import ItemSerializer,CategorySerializer,CustomerSerializer,StockEntrySerializer,StockExitSerializer,SupplierSerializer
 from django.db.models import Sum,Min,Max
@@ -14,6 +15,11 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 
 
+# class RegisterViewSet(viewsets.ModelViewSet):
+#     queryset=User.objects.all()
+#     serializer_class=RegisterSerializer
+    
+
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset=Customer.objects.all()
@@ -23,7 +29,6 @@ class CustomerViewSet(viewsets.ModelViewSet):
     filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
     search_fields=['name','email','phone'] 
      
-    
 
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all()
@@ -36,7 +41,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes=[IsAuthenticated,IsOwnerOrReadOnly]
+    permission_classes=[IsAuthenticated,IsViewerReadOnly,IsOwnerOrReadOnly]
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user) 
@@ -51,13 +56,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ItemViewSet(viewsets.ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
-    permission_classes=[IsAuthenticated,IsOwnerOrReadOnly]
+    permission_classes=[IsAuthenticated,IsViewerReadOnly,IsOwnerOrReadOnly]
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user) 
 
     # Owners to see their own items
-    def get_queryset(self):
-        return Item.objects.filter(owner=self.request.user) 
+    # def get_queryset(self):
+    #     return Item.objects.filter(owner=self.request.user) 
 
     filter_backends=[DjangoFilterBackend,filters.SearchFilter, filters.OrderingFilter]
     filterset_fields=['category','supplier']
@@ -69,7 +74,7 @@ class ItemViewSet(viewsets.ModelViewSet):
 class StockEntryViewSet(viewsets.ModelViewSet):
     queryset = StockEntry.objects.all()
     serializer_class=StockEntrySerializer
-    permission_classes=[IsAuthenticated]
+    permission_classes = [IsStaffOrAdmin]
 
     def get_queryset(self):
         return StockEntry.objects.filter(added_by=self.request.user)
@@ -85,7 +90,7 @@ class StockEntryViewSet(viewsets.ModelViewSet):
 class StockExitViewSet(viewsets.ModelViewSet):
     queryset=StockExit.objects.all()
     serializer_class=StockExitSerializer
-    permission_classes=[IsAuthenticated]
+    permission_classes = [IsStaffOrAdmin]
 
     def get_queryset(self):
         return  StockExit.objects.filter(removed_by=self.request.user)
@@ -134,8 +139,9 @@ class DashBoardView(APIView):
         return Response(data)
 
 
+# Generate a report about the stock, entries and exits
 class StockPDFReportView(APIView):
-    permission_classes=[IsAuthenticated]
+    permission_classes=[IsAuthenticated,IsStaffOrAdmin]
     def get(self,request):
         entries=StockEntry.objects.all()
         exits=StockExit.objects.all()
@@ -157,3 +163,5 @@ class StockPDFReportView(APIView):
         response['Content-Disposition'] = 'attachment; filename="stock_report.pdf"'
         pisa_status = pisa.CreatePDF(html, dest=response)
         return response
+
+        

@@ -63,6 +63,7 @@
         <thead>
             <tr>
                 <th>Item</th>
+                <th>Customer</th>
                 <th>Quantity</th>
                 <th>Date Removed</th>
             </tr>
@@ -71,6 +72,7 @@
             {% for exit in exits %}
             <tr>
                 <td>{{ exit.item.item_name }}</td>
+                <td>{{ exit.customer }}</td>
                 <td>{{ exit.quantity_removed }}</td>
                 <td>{{ exit.date_removed }}</td>
             </tr>
